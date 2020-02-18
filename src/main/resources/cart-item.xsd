@@ -1,0 +1,49 @@
+<xsd:schema xmlns:xsd="http://www.w3.org/2001/XMLSchema"
+            xmlns:tns="http://com.dbs/cart/cartItem"
+            targetNamespace="http://com.dbs/cart/cartItem"
+            elementFormDefault="qualified">
+
+    <xsd:simpleType name="EmailType">
+        <xsd:restriction base="xsd:string">
+            <xsd:pattern value="[^@]+@[^\.]+\..+"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+
+    <xsd:simpleType name="ResultType">
+        <xsd:restriction base="xsd:string">
+            <xsd:enumeration value="SUCCESS"/>
+            <xsd:enumeration value="FAILURE"/>
+        </xsd:restriction>
+    </xsd:simpleType>
+
+    <xsd:complexType name="AppUserType">
+        <xsd:sequence>
+            <xsd:element name="userId" type="xsd:token"/>
+            <xsd:element name="name" type="xsd:token" minOccurs="0"/>
+            <xsd:element name="email" type="tns:EmailType" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="CartItemType">
+        <xsd:sequence>
+            <xsd:element name="itemCode" type="xsd:token"/>
+            <xsd:element name="itemName" type="xsd:token" minOccurs="0"/>
+            <xsd:element name="itemDesc" type="xsd:token" minOccurs="0"/>
+            <xsd:element name="itemPrice" type="xsd:decimal"/>
+            <xsd:element name="itemLocation" type="xsd:token" minOccurs="0"/>
+            <xsd:element name="timeAdded" type="xsd:date" minOccurs="0"/>
+            <xsd:element name="user" type="tns:AppUserType"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:complexType name="CartItemResponse">
+        <xsd:sequence>
+            <xsd:element name="result" type="tns:ResultType"/>
+            <xsd:element name="errorMsg" type="xsd:string" minOccurs="0"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
+    <xsd:element name="CartItemReq" type="tns:CartItemType"/>
+    <xsd:element name="CartItemResp" type="tns:CartItemResponse"/>
+
+</xsd:schema>

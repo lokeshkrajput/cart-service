@@ -11,14 +11,19 @@ import java.util.Objects;
 public class AppUser implements Serializable {
 
     private static final long serialversionUID = 0L;
+
     @Id
     @GeneratedValue
+    private int id;
+
+
+    @Column(unique = true)
     private String userId;
 
     @Column
     private String name;
 
-    @Column
+    @Column(unique = true)
     private String email;
 
     public String getUserId() {

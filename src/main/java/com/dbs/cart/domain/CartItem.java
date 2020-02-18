@@ -12,9 +12,9 @@ public class CartItem implements Serializable {
 
     @Id
     @GeneratedValue
-    private String itemId;
+    private int itemId;
 
-    @Column
+    @Column(unique = true)
     private String itemCode;
 
     @Column
@@ -36,12 +36,11 @@ public class CartItem implements Serializable {
     @JoinColumn(name="user")
     private AppUser user;
 
-
-    public String getItemId() {
+    public int getItemId() {
         return itemId;
     }
 
-    public void setItemId(String itemId) {
+    public void setItemId(int itemId) {
         this.itemId = itemId;
     }
 

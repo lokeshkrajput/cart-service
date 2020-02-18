@@ -9,4 +9,6 @@ public interface CartItemService {
 
     public void saveMessage(CartItemType cartItem);
 
+    public void tryFailedItem(CartItemType cartItem);
+
 }

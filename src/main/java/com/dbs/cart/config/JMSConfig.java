@@ -30,7 +30,7 @@ public class JMSConfig {
     public ActiveMQConnectionFactory activeMQConnectionFactory() {
         ActiveMQConnectionFactory factory = new ActiveMQConnectionFactory();
         factory.setBrokerURL(brokerUrl);
-        factory.setTrustedPackages(Arrays.asList("com.dbs.cart"));
+        factory.setTrustedPackages(Arrays.asList("com.dbs.cart", "java.math"));
         return factory;
     }
 
@@ -42,6 +42,11 @@ public class JMSConfig {
     @Bean
     public Queue queue() {
         return new ActiveMQQueue("cart.item.queue");
+    }
+
+    @Bean("failedItemQ")
+    public Queue itemReserveQueue() {
+        return new ActiveMQQueue("cart.item.queue.fail");
     }
 
 }

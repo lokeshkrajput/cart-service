@@ -2,6 +2,7 @@ package com.dbs.cart.domain;
 
 import javax.persistence.*;
 import java.io.Serializable;
+import java.math.BigDecimal;
 import java.util.Date;
 import java.util.Objects;
 
@@ -24,7 +25,7 @@ public class CartItem implements Serializable {
     private String itemDesc;
 
     @Column
-    private double itemPrice;
+    private BigDecimal itemPrice;
 
     @Column
     private String itemLocation;
@@ -60,11 +61,11 @@ public class CartItem implements Serializable {
         this.itemDesc = itemDesc;
     }
 
-    public double getItemPrice() {
+    public BigDecimal getItemPrice() {
         return itemPrice;
     }
 
-    public void setItemPrice(double itemPrice) {
+    public void setItemPrice(BigDecimal itemPrice) {
         this.itemPrice = itemPrice;
     }
 

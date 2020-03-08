@@ -43,7 +43,14 @@
         </xsd:sequence>
     </xsd:complexType>
 
+    <xsd:complexType name="CartItemTypes">
+        <xsd:sequence>
+            <xsd:element name="items" type="tns:CartItemType" maxOccurs="unbounded"/>
+        </xsd:sequence>
+    </xsd:complexType>
+
     <xsd:element name="CartItemReq" type="tns:CartItemType"/>
     <xsd:element name="CartItemResp" type="tns:CartItemResponse"/>
+    <xsd:element name="GetCartItemsResponse" type="tns:CartItemTypes"/>
 
 </xsd:schema>

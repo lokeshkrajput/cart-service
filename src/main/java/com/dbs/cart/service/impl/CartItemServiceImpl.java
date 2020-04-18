@@ -3,10 +3,7 @@ package com.dbs.cart.service.impl;
 import ch.qos.logback.classic.Logger;
 import com.dbs.cart.domain.AppUser;
 import com.dbs.cart.domain.CartItem;
-import com.dbs.cart.exception.CouldNotCreateCartItemException;
-import com.dbs.cart.exception.CouldNotRetrieveCartItemsException;
-import com.dbs.cart.exception.DatabaseException;
-import com.dbs.cart.exception.ItemConversionException;
+import com.dbs.cart.exception.*;
 import com.dbs.cart.generated.CartItemType;
 import com.dbs.cart.generated.CartItemTypes;
 import com.dbs.cart.repo.AppUserRepo;
@@ -30,12 +27,15 @@ import java.util.List;
 public class CartItemServiceImpl implements CartItemService {
 
     public static final long WAIT_TIME_MULTIPLIER = 1000L;
-    public static final long SAVE_MAX_TRY = 10;
 
     private static Logger log = (Logger) LoggerFactory.getLogger(CartItemServiceImpl.class);
 
-    @Value("cart.failure.retry-seq")
+    @Value("${cart.failure.retry-seq}")
     private String retrySeq;
+
+    @Value("${cart.failure.max-retry}")
+    private String maxRetry;
+
 
     @Autowired
     private CartItemRepo cartItemRepo;
@@ -62,9 +62,12 @@ public class CartItemServiceImpl implements CartItemService {
         CartItem item = null;
         try {
 
-            log.info("Received cart item : <" + cartItemType + ">");
+            log.info("Received a cart item with item code: " + cartItemType.getItemCode()
+                    + ", added by user: " + cartItemType.getUser().getUserId());
 
             item = getEntity(cartItemType);
+
+            log.info("Going to persist cart item: " + item);
 
             // save the cart item into the database
             saveItem(item);
@@ -86,7 +89,7 @@ public class CartItemServiceImpl implements CartItemService {
             if(item != null) {
 
                 try {
-                    tryFailedItem(item, 1);
+                    tryFailedItem(item, 0);
 
                 } catch (CouldNotCreateCartItemException e1) {
 
@@ -112,10 +115,10 @@ public class CartItemServiceImpl implements CartItemService {
     @Override
     @JmsListener(destination = "retry.cart.item.queue")
     @Transactional
-    public void saveCartMessage(CartItem cartItem) {
+    public void retrySavingCartMessage(CartItem cartItem) {
 
         try {
-            tryFailedItem(cartItem, 1);
+            tryFailedItem(cartItem, 0);
 
         } catch (CouldNotCreateCartItemException e1) {
 
@@ -150,12 +153,11 @@ public class CartItemServiceImpl implements CartItemService {
 
         try {
             cartItemRepo.save(item);
-            log.info("Cart item saved into database.");
 
         } catch (Exception e) { // DB related exception
 
-            log.error("Exception occurred while saving cart item", e);
-            throw new DatabaseException(e);
+            log.error("Exception occurred while saving cart item: " + item, e);
+            throw new DatabaseException("Exception occurred while saving cart item: " + item, e);
         }
     }
 
@@ -166,7 +168,7 @@ public class CartItemServiceImpl implements CartItemService {
             // Wait for some time
             try {
                 // get the wait time from configuration
-                long waitTime = Long.parseLong(retrySeq.split(",")[tryCount]) * WAIT_TIME_MULTIPLIER;
+                long waitTime = Long.parseLong(retrySeq.split(",")[tryCount++]) * WAIT_TIME_MULTIPLIER;
                 Thread.sleep(waitTime);
 
             } catch (InterruptedException e) {
@@ -179,12 +181,12 @@ public class CartItemServiceImpl implements CartItemService {
         } catch (DatabaseException e) {
 
             // Check if maximum try count reached - if not retry again OR put the message into error-queue
-            if(tryCount <= SAVE_MAX_TRY) {
+            if(tryCount < Integer.parseInt(maxRetry)) {
 
-                tryFailedItem(item, ++tryCount);
+                tryFailedItem(item, tryCount);
 
             } else {
-                throw new CouldNotCreateCartItemException("Could not save cart item after maximum try count: " +  SAVE_MAX_TRY, e);
+                throw new CouldNotCreateCartItemException("Could not save cart item after maximum try count: " +  maxRetry, e);
             }
         }
     }

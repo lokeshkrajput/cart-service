@@ -16,7 +16,7 @@ public interface CartItemService {
 
     public void saveCartMessage(CartItemType cartItem);
 
-    public void saveCartMessage(CartItem cartItem);
+    public void retrySavingCartMessage(CartItem cartItem);
 
     public CartItemTypes getCartItemsByUserId(String userId) throws CouldNotRetrieveCartItemsException;
 

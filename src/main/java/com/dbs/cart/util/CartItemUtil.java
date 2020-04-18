@@ -30,7 +30,7 @@ public class CartItemUtil {
 
         } catch (BeansException e) {
             log.error("Message conversion failed", e);
-            throw new ItemConversionException(e);
+            throw new ItemConversionException("Message conversion failed", e);
         }
         return cartItem;
     }
@@ -48,7 +48,7 @@ public class CartItemUtil {
             }
         } catch (BeansException e) {
             log.error("Message conversion failed", e);
-            throw new ItemConversionException(e);
+            throw new ItemConversionException("Message conversion failed", e);
         }
 
         return cartItemType;

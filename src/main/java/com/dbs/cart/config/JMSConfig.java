@@ -44,9 +44,19 @@ public class JMSConfig {
         return new ActiveMQQueue("cart.item.queue");
     }
 
-    @Bean("failedItemQ")
-    public Queue itemReserveQueue() {
-        return new ActiveMQQueue("cart.item.queue.fail");
+    @Bean("stageItemQ")
+    public Queue stageItemQueue() {
+        return new ActiveMQQueue("stage.cart.item.queue");
+    }
+
+    @Bean("retryItemQ")
+    public Queue itemRetryQueue() {
+        return new ActiveMQQueue("retry.cart.item.queue");
+    }
+
+    @Bean("errorItemQ")
+    public Queue erroredItemQueue() {
+        return new ActiveMQQueue("error.cart.item.queue");
     }
 
 }

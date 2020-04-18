@@ -6,7 +6,7 @@ import org.junit.Assert;
 
 import java.math.BigDecimal;
 
-public class CartTestUtils {
+public class CartTestHelper {
 
     static CartItemType createCartItem(String userId, String name, String email, String itemCode, String itemName,
                                        String itemDesc, BigDecimal itemPrice, String itemLoc) {

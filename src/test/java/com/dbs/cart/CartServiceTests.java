@@ -1,5 +1,6 @@
 package com.dbs.cart;
 
+import com.dbs.cart.exception.CouldNotRetrieveCartItemsException;
 import com.dbs.cart.generated.CartItemType;
 import com.dbs.cart.generated.CartItemTypes;
 import com.dbs.cart.service.CartItemService;
@@ -29,13 +30,13 @@ class CartServiceTests {
     @BeforeAll
     private static void setUp() {
 
-        cartItem1 = CartTestUtils.createCartItem("lrajput", "Lokesh Kumar", "lokeshkrajput@gmail.com",
+        cartItem1 = CartTestHelper.createCartItem("lrajput", "Lokesh Kumar", "lokeshkrajput@gmail.com",
                 "1", "item1", "Item Desc1", new BigDecimal("21.30"), "IN");
 
-        cartItem2 = CartTestUtils.createCartItem("lokeshrajput", "Lokesh Rajput", "lokesh.persistent@gmail.com",
+        cartItem2 = CartTestHelper.createCartItem("lokeshrajput", "Lokesh Rajput", "lokesh.persistent@gmail.com",
                 "2", "item2", "Item Desc2", new BigDecimal("20.12"), "SG");
 
-        cartItem3 = CartTestUtils.createCartItem("lokeshrajput", "Lokesh Rajput", "lokesh.persistent@gmail.com",
+        cartItem3 = CartTestHelper.createCartItem("lokeshrajput", "Lokesh Rajput", "lokesh.persistent@gmail.com",
                 "3", "item3", "Item Desc3", new BigDecimal("20.30"), "IN");
 
 
@@ -46,12 +47,17 @@ class CartServiceTests {
 
         cartItemService.saveCartMessage(cartItem1);
 
-        CartItemTypes cartItems = cartItemService.getCartItemsByUserId("lrajput");
+        CartItemTypes cartItems = null;
+        try {
+            cartItems = cartItemService.getCartItemsByUserId("lrajput");
+        } catch (CouldNotRetrieveCartItemsException e) {
+            Assert.fail("Could not retrieve cart items");
+        }
 
         Assert.assertEquals(1, cartItems.getItems().size());
 
         CartItemType cartItemType = cartItems.getItems().get(0);
-        CartTestUtils.validateAddedItem(cartItem1, cartItemType);
+        CartTestHelper.validateAddedItem(cartItem1, cartItemType);
 
     }
 
@@ -61,15 +67,20 @@ class CartServiceTests {
         cartItemService.saveCartMessage(cartItem2);
         cartItemService.saveCartMessage(cartItem3);
 
-        CartItemTypes cartItems = cartItemService.getCartItemsByUserId("lokeshrajput");
+        CartItemTypes cartItems = null;
+        try {
+            cartItems = cartItemService.getCartItemsByUserId("lokeshrajput");
+        } catch (CouldNotRetrieveCartItemsException e) {
+            Assert.fail("Could not retrieve cart items");
+        }
 
         Assert.assertEquals(2, cartItems.getItems().size());
 
         CartItemType cartItemType2 = cartItems.getItems().get(0);
-        CartTestUtils.validateAddedItem(cartItem2, cartItemType2);
+        CartTestHelper.validateAddedItem(cartItem2, cartItemType2);
 
         CartItemType cartItemType3 = cartItems.getItems().get(1);
-        CartTestUtils.validateAddedItem(cartItem3, cartItemType3);
+        CartTestHelper.validateAddedItem(cartItem3, cartItemType3);
 
     }
 

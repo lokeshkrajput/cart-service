@@ -3,32 +3,39 @@ package com.dbs.cart.service.impl;
 import ch.qos.logback.classic.Logger;
 import com.dbs.cart.domain.AppUser;
 import com.dbs.cart.domain.CartItem;
-import com.dbs.cart.generated.AppUserType;
+import com.dbs.cart.exception.CouldNotCreateCartItemException;
+import com.dbs.cart.exception.CouldNotRetrieveCartItemsException;
+import com.dbs.cart.exception.DatabaseException;
+import com.dbs.cart.exception.ItemConversionException;
 import com.dbs.cart.generated.CartItemType;
 import com.dbs.cart.generated.CartItemTypes;
 import com.dbs.cart.repo.AppUserRepo;
 import com.dbs.cart.repo.CartItemRepo;
 import com.dbs.cart.service.CartItemService;
+import com.dbs.cart.util.CartItemUtil;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jms.annotation.JmsListener;
 import org.springframework.jms.core.JmsTemplate;
-import org.springframework.jms.support.converter.MessageConversionException;
 import org.springframework.stereotype.Service;
 
 import javax.jms.Queue;
 import javax.transaction.Transactional;
-import java.util.ArrayList;
 import java.util.List;
 
 
 @Service
 public class CartItemServiceImpl implements CartItemService {
 
-    public static final long WAIT_TIME = 10000L;
+    public static final long WAIT_TIME_MULTIPLIER = 1000L;
+    public static final long SAVE_MAX_TRY = 10;
+
     private static Logger log = (Logger) LoggerFactory.getLogger(CartItemServiceImpl.class);
+
+    @Value("cart.failure.retry-seq")
+    private String retrySeq;
 
     @Autowired
     private CartItemRepo cartItemRepo;
@@ -37,8 +44,12 @@ public class CartItemServiceImpl implements CartItemService {
     private AppUserRepo userRepo;
 
     @Autowired
-    @Qualifier("failedItemQ")
-    private Queue failedItemQ;
+    @Qualifier("stageItemQ")
+    private Queue stageItemQ;
+
+    @Autowired
+    @Qualifier("errorItemQ")
+    private Queue errorItemQ;
 
     @Autowired
     private JmsTemplate jmsTemplate;
@@ -46,90 +57,135 @@ public class CartItemServiceImpl implements CartItemService {
     @Override
     @JmsListener(destination = "cart.item.queue")
     @Transactional
-    public void saveCartMessage(CartItemType cartItemType) {
+    public void saveCartMessage(CartItemType cartItemType)  {
 
+        CartItem item = null;
         try {
-            log.info("Received <" + cartItemType + ">");
-            cartItemRepo.save(convertToCartItem(cartItemType));
-            log.info("Item Saved into DB!");
 
-        } catch (MessageConversionException e) {
-            // programming error- eat it
-        } catch (Throwable th) {
-            // fault tolerance - save into error queue
-            log.error("Exception occurred while saving into DB", th);
-            jmsTemplate.convertAndSend(failedItemQ, cartItemType);
+            log.info("Received cart item : <" + cartItemType + ">");
+
+            item = getEntity(cartItemType);
+
+            // save the cart item into the database
+            saveItem(item);
+
+            log.info("Cart item saved into database.");
+
+        } catch (ItemConversionException e) {
+
+            // programming error - put the item into error-queue should not be re-tried
+            log.error("Message conversion failed for Cart Item", e);
+
+            if(item != null) {
+                jmsTemplate.convertAndSend(errorItemQ, item);
+            }
+
+        }  catch (DatabaseException e) {
 
             // retry with failed item from the failed queue
-        }
-    }
+            if(item != null) {
 
-    @Override
-    @JmsListener(destination = "cart.item.queue.fail")
-    @Transactional
-    public void tryFailedItem(CartItemType cartItem) {
+                try {
+                    tryFailedItem(item, 1);
 
-        try {
-            Thread.sleep(WAIT_TIME);
-            saveCartMessage(cartItem);
-        } catch (InterruptedException e) {
-            //eat it
-        }
-    }
+                } catch (CouldNotCreateCartItemException e1) {
 
-    @Override
-    public CartItemTypes getCartItemsByUserId(String userId) {
-        List<CartItem> cartItems =  cartItemRepo.findCartItemByUserId(userId);
+                    // Save the cart item into stage-queue, message can be re-triggered later from this queue by
+                    // moving message to the retry queue "cart.item.queue.retry"
+                    jmsTemplate.convertAndSend(stageItemQ, item);
 
-        CartItemTypes cartItemTypes = new CartItemTypes();
-        for(CartItem item: cartItems) {
-            cartItemTypes.getItems().add(convertToCartItemType(item));
-        }
-        return cartItemTypes;
-    }
-
-
-    private CartItem convertToCartItem(CartItemType cartItemType) {
-
-        CartItem cartItem = new CartItem();
-
-        try{
-            BeanUtils.copyProperties(cartItemType, cartItem);
-
-            if(cartItemType.getUser() != null) {
-
-                AppUser user = userRepo.findAppUserByEmail(cartItemType.getUser().getEmail());
-                if(user != null) {
-                    cartItem.setUser(user);
-                } else {
-                    cartItem.setUser(new AppUser());
-                    BeanUtils.copyProperties(cartItemType.getUser(), cartItem.getUser());
                 }
             }
-
-        } catch (Exception e) {
-            log.error("Message conversion failed", e);
-            throw new MessageConversionException(e.getMessage());
         }
-        return cartItem;
     }
 
-    private CartItemType convertToCartItemType(CartItem cartItem) {
+    private CartItem getEntity(CartItemType cartItemType) {
 
-        CartItemType cartItemType = new CartItemType();
+        AppUser user = null;
+        if (cartItemType.getUser() != null) {
+            user = userRepo.findAppUserByEmail(cartItemType.getUser().getEmail());
+        }
 
-        try{
-            BeanUtils.copyProperties(cartItem, cartItemType);
+        return CartItemUtil.convertToCartItemBean(cartItemType, user);
+    }
 
-            if(cartItem.getUser() != null) {
-                cartItemType.setUser(new AppUserType());
-                BeanUtils.copyProperties(cartItem.getUser(), cartItemType.getUser());
+    @Override
+    @JmsListener(destination = "retry.cart.item.queue")
+    @Transactional
+    public void saveCartMessage(CartItem cartItem) {
+
+        try {
+            tryFailedItem(cartItem, 1);
+
+        } catch (CouldNotCreateCartItemException e1) {
+
+            // Save the cart item into stage-queue, message can be re-triggered later from this queue by
+            // moving message to the retry queue "cart.item.queue.retry"
+            jmsTemplate.convertAndSend(stageItemQ, cartItem);
+
+        }
+    }
+
+    @Override
+    public CartItemTypes getCartItemsByUserId(String userId) throws CouldNotRetrieveCartItemsException {
+
+        try {
+            List<CartItem> cartItems =  cartItemRepo.findCartItemByUserId(userId);
+
+            CartItemTypes cartItemTypes = new CartItemTypes();
+            for(CartItem item: cartItems) {
+                cartItemTypes.getItems().add(CartItemUtil.convertToCartItemDTO(item));
             }
 
-        } catch (Exception e) {
-            log.error("Message conversion failed", e);
-            throw new MessageConversionException(e.getMessage());
+            return cartItemTypes;
+
+        } catch (ItemConversionException e) {
+            throw new CouldNotRetrieveCartItemsException(e);
         }
-        return cartItemType;
+
+    }
+
+
+    private void saveItem(CartItem item) throws DatabaseException {
+
+        try {
+            cartItemRepo.save(item);
+            log.info("Cart item saved into database.");
+
+        } catch (Exception e) { // DB related exception
+
+            log.error("Exception occurred while saving cart item", e);
+            throw new DatabaseException(e);
+        }
+    }
+
+    private void tryFailedItem(CartItem item, int tryCount) throws CouldNotCreateCartItemException {
+
+        try {
+
+            // Wait for some time
+            try {
+                // get the wait time from configuration
+                long waitTime = Long.parseLong(retrySeq.split(",")[tryCount]) * WAIT_TIME_MULTIPLIER;
+                Thread.sleep(waitTime);
+
+            } catch (InterruptedException e) {
+                log.error("Thread interrupted ", e);
+            }
+
+            // try saving the item again
+            saveItem(item);
+
+        } catch (DatabaseException e) {
+
+            // Check if maximum try count reached - if not retry again OR put the message into error-queue
+            if(tryCount <= SAVE_MAX_TRY) {
+
+                tryFailedItem(item, ++tryCount);
+
+            } else {
+                throw new CouldNotCreateCartItemException("Could not save cart item after maximum try count: " +  SAVE_MAX_TRY, e);
+            }
+        }
     }
 }

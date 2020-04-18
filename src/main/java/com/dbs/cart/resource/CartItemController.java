@@ -1,6 +1,7 @@
 package com.dbs.cart.resource;
 
 import ch.qos.logback.classic.Logger;
+import com.dbs.cart.exception.CouldNotRetrieveCartItemsException;
 import com.dbs.cart.generated.CartItemType;
 import com.dbs.cart.generated.CartItemTypes;
 import com.dbs.cart.generated.ResultType;
@@ -58,7 +59,7 @@ public class CartItemController {
 
     @GetMapping(value="/getItemByUserId/{userId}", produces = "application/json")
     @ResponseBody
-    public CartItemTypes getItem(@PathVariable String userId) {
+    public CartItemTypes getItem(@PathVariable String userId) throws CouldNotRetrieveCartItemsException {
 
         LOG.info("Received request to get cart Items for User: " + userId);
         return cartService.getCartItemsByUserId(userId);

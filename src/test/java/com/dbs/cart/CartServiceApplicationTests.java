@@ -1,13 +1,9 @@
 package com.dbs.cart;
 
-import com.dbs.cart.generated.AppUserType;
 import com.dbs.cart.generated.CartItemType;
 import com.dbs.cart.generated.CartItemTypes;
 import org.junit.Assert;
-import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.jupiter.api.BeforeAll;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,10 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.junit4.SpringRunner;
 
 import javax.persistence.EntityManager;
-import javax.transaction.Transactional;
 import java.math.BigDecimal;
-import java.util.Collections;
-import java.util.List;
 
 
 @RunWith(SpringRunner.class)
@@ -43,16 +36,16 @@ class CartServiceApplicationTests {
 
     @BeforeAll
     private static void setUp() {
-        cartItem1 = CartTestUtils.createCartItem("lrajput", "Lokesh Kumar", "lokeshkrajput@gmail.com",
+        cartItem1 = CartTestHelper.createCartItem("lrajput", "Lokesh Kumar", "lokeshkrajput@gmail.com",
                 "1", "item1", "Item Desc1", new BigDecimal("21.30"), "IN");
 
-        cartItem2 = CartTestUtils.createCartItem("lokeshrajput", "Lokesh Rajput", "lokesh.persistent@gmail.com",
+        cartItem2 = CartTestHelper.createCartItem("lokeshrajput", "Lokesh Rajput", "lokesh.persistent@gmail.com",
                 "2", "item2", "Item Desc2", new BigDecimal("20.12"), "SG");
 
-        cartItem3 = CartTestUtils.createCartItem("lokeshrajput", "Lokesh Rajput", "lokesh.persistent@gmail.com",
+        cartItem3 = CartTestHelper.createCartItem("lokeshrajput", "Lokesh Rajput", "lokesh.persistent@gmail.com",
                 "3", "item3", "Item Desc3", new BigDecimal("20.30"), "IN");
 
-        cartItem4 = CartTestUtils.createCartItem("lokeshr", "Lokesh Kumar", "lokesh.persistent2@gmail.com",
+        cartItem4 = CartTestHelper.createCartItem("lokeshr", "Lokesh Kumar", "lokesh.persistent2@gmail.com",
                 "4", "item4", "Item Desc4", new BigDecimal("10.30"), "IN");
     }
 
@@ -77,7 +70,7 @@ class CartServiceApplicationTests {
         Assert.assertEquals(1, cartItemsResp.getBody().getItems().size());
         CartItemType cartItemType = cartItemsResp.getBody().getItems().get(0);
 
-        CartTestUtils.validateAddedItem(cartItem1, cartItemType);
+        CartTestHelper.validateAddedItem(cartItem1, cartItemType);
     }
 
 
@@ -108,8 +101,8 @@ class CartServiceApplicationTests {
         CartItemType cartItemType2 = cartItemsResp.getBody().getItems().get(0);
         CartItemType cartItemType3 = cartItemsResp.getBody().getItems().get(1);
 
-        CartTestUtils.validateAddedItem(cartItem2, cartItemType2);
-        CartTestUtils.validateAddedItem(cartItem3, cartItemType3);
+        CartTestHelper.validateAddedItem(cartItem2, cartItemType2);
+        CartTestHelper.validateAddedItem(cartItem3, cartItemType3);
     }
 
     String getURL(String url) {
